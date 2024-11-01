@@ -41,6 +41,7 @@ const generateTasks = () => {
 const App = () => {
   const [view, setView] = React.useState<ViewMode>(ViewMode.Day);
   const [tasks, setTasks] = React.useState<Task[]>(generateTasks());
+  // const [views, setViews] = useState<Task[]>([]);
   const [isChecked, setIsChecked] = React.useState(true);
   let columnWidth = 30;
   if (view === ViewMode.Year) {
@@ -108,8 +109,7 @@ const App = () => {
         isChecked={isChecked}
       />
       <Gantt
-       headerHeight={60}
-        tasks={tasks}
+        tasks={tasks.slice(0,1000)}
         viewMode={view}
         onDateChange={handleTaskChange}
         onDelete={handleTaskDelete}

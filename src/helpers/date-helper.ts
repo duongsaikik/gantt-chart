@@ -193,7 +193,7 @@ export const getLocaleMonth = (
     bottomValue[0].toLocaleUpperCase()
   );
   const newFormat = bottomValue.split(" ");
-  return `${newFormat[0].slice(0, 2)} ${newFormat[1]}`;
+  return `${newFormat[0].slice(0, 2)}${newFormat[1]}`;
 };
 
 export const getLocalDayOfWeek = (
@@ -210,7 +210,7 @@ export const getLocalDayOfWeek = (
   );
   const newFormat = bottomValue.split(" ");
   if (newFormat[1]) {
-    return `${newFormat[0].slice(0, 1)} ${newFormat[1]}`;
+    return `${newFormat[0].slice(0, 1)}${newFormat[1]}`;
   }
   return bottomValue;
 };

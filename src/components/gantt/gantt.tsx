@@ -1,32 +1,32 @@
 import React, {
-  useState,
   SyntheticEvent,
-  useRef,
   useEffect,
   useMemo,
+  useRef,
+  useState,
 } from "react";
-import { ViewMode, GanttProps, Task } from "../../types/public-types";
-import { GridProps } from "../grid/grid";
+import { convertToBarTasks } from "../../helpers/bar-helper";
 import { ganttDateRange, seedDates } from "../../helpers/date-helper";
+import { removeHiddenTasks, sortTasks } from "../../helpers/other-helper";
+import { BarTask } from "../../types/bar-task";
+import { DateSetup } from "../../types/date-setup";
+import { GanttEvent } from "../../types/gantt-task-actions";
+import { GanttProps, Task, ViewMode } from "../../types/public-types";
 import { CalendarProps } from "../calendar/calendar";
-import { TaskGanttContentProps } from "./task-gantt-content";
-import { TaskListHeaderDefault } from "../task-list/task-list-header";
-import { TaskListTableDefault } from "../task-list/task-list-table";
+import { GridProps } from "../grid/grid";
+import { HorizontalScroll } from "../other/horizontal-scroll";
 import { StandardTooltipContent, Tooltip } from "../other/tooltip";
 import { VerticalScroll } from "../other/vertical-scroll";
-import { TaskListProps, TaskList } from "../task-list/task-list";
-import { TaskGantt } from "./task-gantt";
-import { BarTask } from "../../types/bar-task";
-import { convertToBarTasks } from "../../helpers/bar-helper";
-import { GanttEvent } from "../../types/gantt-task-actions";
-import { DateSetup } from "../../types/date-setup";
-import { HorizontalScroll } from "../other/horizontal-scroll";
-import { removeHiddenTasks, sortTasks } from "../../helpers/other-helper";
+import { TaskList, TaskListProps } from "../task-list/task-list";
+import { TaskListHeaderDefault } from "../task-list/task-list-header";
+import { TaskListTableDefault } from "../task-list/task-list-table";
 import styles from "./gantt.module.css";
+import { TaskGantt } from "./task-gantt";
+import { TaskGanttContentProps } from "./task-gantt-content";
 
 export const Gantt: React.FunctionComponent<GanttProps> = ({
   tasks,
-  headerHeight = 50,
+  headerHeight = 60,
   columnWidth = 60,
   listCellWidth = "155px",
   rowHeight = 50,
@@ -90,6 +90,15 @@ export const Gantt: React.FunctionComponent<GanttProps> = ({
 
   const [selectedTask, setSelectedTask] = useState<BarTask>();
   const [failedTask, setFailedTask] = useState<BarTask | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
+  const taskRef = useRef<HTMLDivElement | null>(null);
+  const minimumSize = 20;
+  // const [currentLeftWidth,setCurrentLeftWidth] = useState(0)
+
+  // Variables to store initial dimensions and positions
+  let originalWidth = 0;
+  let originalX = 0;
+  let originalMouseX = 0;
 
   const svgWidth = dateSetup.dates.length * columnWidth;
   const ganttFullHeight = barTasks.length * rowHeight;
@@ -282,7 +291,6 @@ export const Gantt: React.FunctionComponent<GanttProps> = ({
 
       setIgnoreScrollEvent(true);
     };
-
     // subscribe if scroll is necessary
     wrapperRef.current?.addEventListener("wheel", handleWheel, {
       passive: false,
@@ -431,6 +439,59 @@ export const Gantt: React.FunctionComponent<GanttProps> = ({
     onDelete,
   };
 
+  const handleMouseDown = (e: MouseEvent, direction?: string) => {
+    e.preventDefault();
+
+    const element = elementRef.current;
+    const task = taskRef.current;
+    const container = wrapperRef.current;
+    if (!element || !container || !task) return;
+
+    originalWidth = element.offsetWidth;
+    originalX = element.getBoundingClientRect().left;
+    originalMouseX = e.pageX;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!element) return;
+      switch (direction) {
+        case "right":
+          const width = originalWidth + (moveEvent.pageX - originalMouseX);
+          if (width > minimumSize) {
+            element.style.width = `${width}px`;
+            task.style.width = `${container.offsetWidth - width}px`;
+          }
+
+          break;
+        case "left":
+          const widthLeft = originalWidth - (moveEvent.pageX - originalMouseX);
+          if (widthLeft > minimumSize) {
+            element.style.width = `${widthLeft}px`;
+            element.style.left = `${
+              originalX + (moveEvent.pageX - originalMouseX)
+            }px`;
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", handleMouseDown);
+      window.removeEventListener("mouseup", handleMouseDown);
+    };
+  }, []);
+
   const tableProps: TaskListProps = {
     rowHeight,
     rowWidth: listCellWidth,
@@ -457,15 +518,31 @@ export const Gantt: React.FunctionComponent<GanttProps> = ({
         tabIndex={0}
         ref={wrapperRef}
       >
-        {listCellWidth && <TaskList {...tableProps} />}
-        <TaskGantt
-          gridProps={gridProps}
-          calendarProps={calendarProps}
-          barProps={barProps}
-          ganttHeight={ganttHeight}
-          scrollY={scrollY}
-          scrollX={scrollX}
-        />
+        <div
+          ref={elementRef}
+          className={`${styles.resizable} resizable`}
+          style={{ position: "relative" }}
+        >
+          <div className={`${styles.resizers} resizers`}>
+            {listCellWidth && <TaskList {...tableProps} />}
+            <div
+              className={`${styles.resizer} ${styles.right} resizer right`}
+              onMouseDown={e =>
+                handleMouseDown(e as unknown as MouseEvent, "right")
+              }
+            />
+          </div>
+        </div>
+        <div ref={taskRef} className={styles.wrapperTask}>
+          <TaskGantt
+            gridProps={gridProps}
+            calendarProps={calendarProps}
+            barProps={barProps}
+            ganttHeight={ganttHeight}
+            scrollY={scrollY}
+            scrollX={scrollX}
+          />
+        </div>
         {ganttEvent.changedTask && (
           <Tooltip
             arrowIndent={arrowIndent}

@@ -3,11 +3,14 @@
   border-bottom: #e6e4e4 1px solid;
   border-top: #e6e4e4 1px solid;
   border-left: #e6e4e4 1px solid;
+  width: 100%;
+  min-width: 800px;
 }
 
 .ganttTable_Header {
   display: table-row;
   list-style: none;
+  width: 100%;
 }
 
 .ganttTable_HeaderSeparator {
